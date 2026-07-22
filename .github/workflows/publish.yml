@@ -1,0 +1,203 @@
+name: Publish to GHCR
+
+# Builds sibling lido / lido-ui sources into PUBLIC image names only.
+# Never pushes ghcr.io/.../lido or lido-ui (Umbrel track).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      owner: ${{ steps.meta.outputs.owner }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read VERSION
+        id: meta
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          tag="$(tr -d '[:space:]' < VERSION)"
+          echo "owner=${owner}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Public images will be ${{ env.REGISTRY }}/${owner}/lido-public:${tag} and lido-public-ui:${tag}"
+
+  build-pool:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout pool source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/lido
+          path: lido
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./lido
+          file: ./lido/Dockerfile
+          platforms: ${{ matrix.platform }}
+          provenance: false
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ needs.version.outputs.owner }}/lido-public,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=lido-public-pool-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=lido-public-pool-${{ matrix.platform }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pool-digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  build-ui:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout UI source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/lido-ui
+          path: lido-ui
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./lido-ui
+          file: ./lido-ui/Dockerfile
+          platforms: ${{ matrix.platform }}
+          provenance: false
+          build-args: |
+            NEXT_PUBLIC_LIDO_PUBLIC=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ needs.version.outputs.owner }}/lido-public-ui,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=lido-public-ui-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=lido-public-ui-${{ matrix.platform }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-pool:
+    needs: [version, build-pool]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: pool-digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          set -euo pipefail
+          image="${{ env.REGISTRY }}/${{ needs.version.outputs.owner }}/lido-public"
+          digests="$(printf "${image}@sha256:%s " *)"
+          docker buildx imagetools create \
+            -t "${image}:${{ needs.version.outputs.tag }}" \
+            -t "${image}:latest" \
+            $digests
+
+  merge-ui:
+    needs: [version, build-ui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: ui-digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          set -euo pipefail
+          image="${{ env.REGISTRY }}/${{ needs.version.outputs.owner }}/lido-public-ui"
+          digests="$(printf "${image}@sha256:%s " *)"
+          docker buildx imagetools create \
+            -t "${image}:${{ needs.version.outputs.tag }}" \
+            -t "${image}:latest" \
+            $digests

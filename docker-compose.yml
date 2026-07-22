@@ -4,7 +4,7 @@
 
 services:
   web:
-    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.0}
+    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.1}
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
@@ -18,7 +18,7 @@ services:
       - server
 
   server:
-    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.0}
+    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.1}
     restart: unless-stopped
     stop_grace_period: 30s
     ports:

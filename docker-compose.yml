@@ -4,7 +4,7 @@
 
 services:
   web:
-    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.2}
+    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.3}
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
@@ -18,7 +18,7 @@ services:
       - server
 
   server:
-    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.2}
+    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.3}
     restart: unless-stopped
     stop_grace_period: 30s
     ports:
@@ -39,6 +39,8 @@ services:
       - STRATUM_PORT=3333
       - ENABLE_STRATUM_V2=true
       - STRATUM_V2_PORT=4444
+      # Shared pool: never allow unauthenticated UI/API authority rotation.
+      - SV2_AUTHORITY_ROTATABLE=false
       - NETWORK=${NETWORK:-mainnet}
       - API_SECURE=false
       - ENABLE_SOLO=true

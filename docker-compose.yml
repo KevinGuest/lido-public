@@ -4,7 +4,7 @@
 
 services:
   web:
-    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.1}
+    image: ghcr.io/kevinguest/lido-public-ui:${LIDO_PUBLIC_UI_TAG:-0.1.2}
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
@@ -12,13 +12,13 @@ services:
       - LIDO_PUBLIC=true
       - NEXT_PUBLIC_LIDO_PUBLIC=true
       - PUBLIC_POOL_API_URL=http://server:2299
-      - PUBLIC_POOL_STRATUM_URL=${PUBLIC_POOL_STRATUM_URL:-lido.wtf:3333}
-      - NEXT_PUBLIC_POOL_STRATUM_URL=${PUBLIC_POOL_STRATUM_URL:-lido.wtf:3333}
+      - PUBLIC_POOL_STRATUM_URL=${PUBLIC_POOL_STRATUM_URL:-st.lido.wtf:3333}
+      - NEXT_PUBLIC_POOL_STRATUM_URL=${PUBLIC_POOL_STRATUM_URL:-st.lido.wtf:3333}
     depends_on:
       - server
 
   server:
-    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.1}
+    image: ghcr.io/kevinguest/lido-public:${LIDO_PUBLIC_TAG:-0.1.2}
     restart: unless-stopped
     stop_grace_period: 30s
     ports:

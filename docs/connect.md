@@ -9,7 +9,7 @@ Solo mining: use your Bitcoin address as the stratum user. If you find a block, 
 
 | Field | Value |
 | --- | --- |
-| URL | `stratum+tcp://lido.wtf:3333` |
+| URL | `stratum+tcp://st.lido.wtf:3333` |
 | User | `YOUR_BTC_ADDRESS.workername` |
 | Password | `x` |
 
@@ -17,7 +17,7 @@ Solo mining: use your Bitcoin address as the stratum user. If you find a block, 
 
 | Field | Value |
 | --- | --- |
-| Host | `lido.wtf` |
+| Host | `st.lido.wtf` |
 | Port | `4444` |
 | User | `YOUR_BTC_ADDRESS.workername` |
 | Password | `x` |
@@ -27,5 +27,6 @@ Authority public key: copy from the Connect panel on https://lido.wtf when SV2 i
 ## Tips
 
 - Prefer a bech32 (`bc1…`) address you control.
-- Open outbound TCP to ports **3333** and **4444** from your miners.
+- Open outbound TCP to ports **3333** and **4444** from your miners (`st.lido.wtf` is DNS-only so stratum bypasses Cloudflare).
+- Dashboard is on **https://lido.wtf** (Cloudflare). Stratum is on **st.lido.wtf** (direct to the pool).
 - Dashboard and logs are on HTTPS via the reverse proxy in front of this stack (or plain HTTP on port 80 for LAN testing).

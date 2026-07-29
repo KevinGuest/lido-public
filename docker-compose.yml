@@ -44,7 +44,6 @@ services:
       - NETWORK=${NETWORK:-mainnet}
       - API_SECURE=false
       - ENABLE_SOLO=true
-      - ENABLE_PROXY=false
       - POOL_IDENTIFIER=${POOL_IDENTIFIER:-Lido}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
